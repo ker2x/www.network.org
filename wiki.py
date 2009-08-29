@@ -32,9 +32,11 @@ import sys
 import urllib
 import urlparse
 import wsgiref.handlers
+import logging
 
 from google.appengine.api import datastore
 from google.appengine.api import datastore_types
+from google.appengine.api import memcache
 from google.appengine.api import users
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
@@ -96,6 +98,7 @@ class WikiPage(BaseRequestHandler):
     self.generate(mode + '.html', {
       'page': page,
     })
+    """logging.info(memcache.get_stats())"""
 
   def post(self, page_name):
     # User must be logged in to edit
@@ -113,6 +116,7 @@ class WikiPage(BaseRequestHandler):
     page = Page.load(page_name)
     page.content = self.request.get('content')
     page.save()
+    memcache.set(key=page_name, value="y", namespace = 'page_exist')
     self.redirect(page.view_url())
 
 
@@ -245,14 +249,23 @@ class WikiWords(Transform):
   """
   def __init__(self):
     """self.regexp = re.compile(r'[A-Z][a-z]+([A-Z][a-z]+)+')"""
-    self.regexp = re.compile(r'[A-Z]\w+')
+    self.regexp = re.compile(r'[A-Z]\w\w\w+')
 
   def replace(self, match):
     wikiword = match.group(0)
-    if Page.exists(wikiword):
-      return '<a class="wikiword" href="/%s">%s</a>' % (wikiword, wikiword)
-    else:
-      return wikiword
+    """ Memcache patch """
+    page_exist = memcache.get(wikiword,namespace='page_exist')  
+    if page_exist is None:                                     
+        if Page.exists(wikiword) is None:                     
+            memcache.set(key=wikiword, value="n",  namespace='page_exist')
+            return wikiword
+        else:
+            memcache.set(key=wikiword, value="y",  namespace='page_exist')
+            return '<a class="wikiword" href="/%s">%s</a>' % (wikiword, wikiword)
+    elif page_exist == "y":
+        return '<a class="wikiword" href="/%s">%s</a>' % (wikiword, wikiword)
+    elif page_exist == "n":
+        return wikiword
 
 
 class AutoLink(Transform):
@@ -274,17 +287,32 @@ class HideReferers(Transform):
 
   def replace(self, match):
     url = match.group(1)
-    scheme, host, path, parameters, query, fragment = urlparse.urlparse(url)
-    url = 'http://www.google.com/url?sa=D&amp;q=' + urllib.quote(url)
-    return 'href="' + url + '"'
+    """scheme, host, path, parameters, query, fragment = urlparse.urlparse(url)"""
+    """ url = 'http://www.google.com/url?sa=D&amp;q=' + urllib.quote(url) """
+    """url = urllib.quote(url)"""
+    return 'href="' + url + '" target="_blank"'
 
 
-def main():
+def real_main():
   application = webapp.WSGIApplication([
     ('/(.*)', WikiPage),
   ], debug=_DEBUG)
   wsgiref.handlers.CGIHandler().run(application)
 
+def profile_main():
+ # This is the main function for profiling 
+ # We've renamed our original main() above to real_main()
+ import cProfile, pstats
+ prof = cProfile.Profile()
+ prof = prof.runctx("real_main()", globals(), locals())
+ print "<pre>"
+ stats = pstats.Stats(prof)
+ stats.sort_stats("time")  # Or cumulative
+ stats.print_stats(80)  # 80 = how many to print
+ # The rest is optional.
+ # stats.print_callees()
+ # stats.print_callers()
+ print "</pre>"
 
 if __name__ == '__main__':
-  main()
+  real_main()
