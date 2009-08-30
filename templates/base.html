@@ -5,19 +5,85 @@
     <title>{% block title %}{{ application_name }}{% endblock %}</title>
     <link href="/static/css/base.css" rel="stylesheet" type="text/css"/>
     <link href="/static/css/chrome.css" rel="stylesheet" type="text/css"/>
+
+<link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/fonts/fonts-min.css" /> 
+<link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/button/assets/skins/sam/button.css" /> 
+<link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.7.0/build/container/assets/skins/sam/container.css" /> 
+<script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/yahoo-dom-event/yahoo-dom-event.js"></script> 
+<script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/connection/connection-min.js"></script> 
+<script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/element/element-min.js"></script> 
+<script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/button/button-min.js"></script> 
+<script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/dragdrop/dragdrop-min.js"></script> 
+<script type="text/javascript" src="http://yui.yahooapis.com/2.7.0/build/container/container-min.js"></script> 
+
+    <!-- <script src="http://www.google.com/jsapi"></script>-->
     <script type="text/javascript">
 
-    function NewPage() {
-      var pageName = window.prompt("Enter the WikiName of your new page:");
-      if (pageName) {
-        location.href = pageName + "?mode=edit";
-      }
-    }
+    //google.load("yui", "2.7.0");
 
+    // init stuff
+    function init()
+    {
+
+      // The handlers for the the dialogNewPage
+      var dNewPageHandleSubmit = function() {
+        var pagename = dialogNewPage.getData().pagename;
+        if(pagename == "") {
+	  alert("Please enter a page name");
+        } else {
+          location.href = pagename + "?mode=edit"; 
+          this.submit(); 
+        }
+      }
+      var dNewPageHandleCancel = function() { this.cancel(); }
+
+      // The dialog to open when "New Page" button is pressed
+      dialogNewPage = new YAHOO.widget.Dialog("dialogNewPage",
+                      { width : "300px",
+                        fixedcenter : true,
+                        visible : false,
+                        constraintoviewport : true,
+                        postmethod: "manual",
+                        buttons : [ { text:"Create", handler:dNewPageHandleSubmit, isDefault : true } ,
+                                    { text:"Cancel", handler:dNewPageHandleCancel } ]
+                      });
+
+    
+    //Validate the DialogNewPage's user entry
+/*    dialogNewPage.validate = function(o) {
+                               var data = this.getData();
+                               if(data.pagename == "") {
+                                 alert("Please enter a page name");
+                                 return false;
+                               } else {
+                                 return true;
+                               }
+                             };
+    }
+*/
+
+   dialogNewPage.render();
+
+    // click listener for the "New Page" button
+    YAHOO.util.Event.addListener("bNewPage", "click", dialogNewPage.show, dialogNewPage, true);
+
+    }
+    YAHOO.util.Event.onDOMReady(init);
     </script>
     {% block head %}{% endblock %}
   </head>
-  <body>
+  <body class="yui-skin-sam">
+
+        <!-- The DialogNewPage div -->
+        <div id="dialogNewPage">
+        <div class="hd">Enter a new page name</div>
+        <div class="bd">
+	<form>
+             <label for="pagename">Page Name : </label><input type="textbox" name="pagename" />
+	</form>
+        </div>
+        </div>
+
     <div id="header">
       <div class="top">
         <div class="login">
@@ -41,11 +107,16 @@
             {% endif %}
           {% endif %}
         </div>
-        <div class="buttons"><span class="item"><input type="button" value="New Page" onclick="NewPage()"/></span>{% block buttons %}{% endblock %}</div>
+        <div class="buttons">
+           <span class="item"><button id="bNewPage">New Page</button></span>
+           {% block buttons %}{% endblock %}
+        </div>
         <div style="clear: both"></div>
       </div>
+
+
     </div>
-    <div>
+<div>
       <div id="leftmenu">{% block leftmenu %}{% endblock %}</div>
       <div id="body">{% block body %}{% endblock %}</div>
     </div>
